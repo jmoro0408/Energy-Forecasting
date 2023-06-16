@@ -1,6 +1,7 @@
 #Energy forecasting
 /data/raw_data
 /data.nosync/raw_data
+/data.nosync/combined_data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
