@@ -1794,6 +1794,36 @@ docs = ["furo (>=2023.5.20)", "proselint (>=0.13)", "sphinx (>=7.0.1)", "sphinx-
 test = ["appdirs (==1.4.4)", "covdefaults (>=2.3)", "pytest (>=7.3.1)", "pytest-cov (>=4.1)", "pytest-mock (>=3.10)"]
 
 [[package]]
+name = "polars"
+version = "0.18.3"
+description = "Blazingly fast DataFrame library"
+category = "main"
+optional = false
+python-versions = ">=3.7"
+files = [
+    {file = "polars-0.18.3-cp37-abi3-macosx_10_7_x86_64.whl", hash = "sha256:0e7d03d0f4a53892ae095f4274a3f8776eb6b6da2ee82a2076636c8319180e32"},
+    {file = "polars-0.18.3-cp37-abi3-macosx_11_0_arm64.whl", hash = "sha256:90d1ff55d18fa9eafec6455230ace27607ecd5b51c68795c724b6338e3a3314b"},
+    {file = "polars-0.18.3-cp37-abi3-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:961471351c31645f2db76cbf42c52e84b8a04832cae0111fb16f83599e033cd7"},
+    {file = "polars-0.18.3-cp37-abi3-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:96befd1c18c0d668a8c50d1833559cbe00536d7b018857a0c0935d6ae60a0052"},
+    {file = "polars-0.18.3-cp37-abi3-win_amd64.whl", hash = "sha256:0950441f464a33da42c8facef6110ece93d15a27a14190176de5cc27dd573d3f"},
+    {file = "polars-0.18.3.tar.gz", hash = "sha256:efc3f629fddb060dc90c2dbd575824c1d662f37294c18c769d28e2bc4d5a1413"},
+]
+
+[package.extras]
+all = ["polars[connectorx,deltalake,fsspec,matplotlib,numpy,pandas,pyarrow,sqlalchemy,timezone,xlsx2csv,xlsxwriter]"]
+connectorx = ["connectorx"]
+deltalake = ["deltalake (>=0.8.0)"]
+fsspec = ["fsspec"]
+matplotlib = ["matplotlib"]
+numpy = ["numpy (>=1.16.0)"]
+pandas = ["pandas", "pyarrow (>=7.0.0)"]
+pyarrow = ["pyarrow (>=7.0.0)"]
+sqlalchemy = ["pandas", "sqlalchemy"]
+timezone = ["backports.zoneinfo", "tzdata"]
+xlsx2csv = ["xlsx2csv (>=0.8.0)"]
+xlsxwriter = ["xlsxwriter"]
+
+[[package]]
 name = "prometheus-client"
 version = "0.17.0"
 description = "Python client for the Prometheus monitoring system."
@@ -2692,4 +2722,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "0e242c641c6fc8926db46716fa4c7c25ddea363e532dbded345a3924215942d1"
+content-hash = "97a321b38b62cc2dd0175ba4b8b60a1136d36a5e0feadbe742ab6f17ed9709b6"
