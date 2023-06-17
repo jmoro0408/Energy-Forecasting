@@ -2,6 +2,7 @@
 /data/raw_data
 /data.nosync/raw_data
 /data.nosync/combined_data
+/data.nosync/transformed_data
 /data_information/Load_map1.png
 /data_information/Load_map2.png
 # Byte-compiled / optimized / DLL files
