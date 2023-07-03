@@ -19,6 +19,7 @@ polars = "^0.18.3"
 pyarrow = "^12.0.1"
 plotly = "^5.15.0"
 statsmodels = "^0.14.0"
+nbstripout = "^0.6.1"
 
 
 [build-system]
