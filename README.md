@@ -1,2 +1,2 @@
 # Energy-Forecasting
-Forecasting energy load requirements in New York state. 
+Forecasting energy load requirements in New York state.
