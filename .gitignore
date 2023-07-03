@@ -1,4 +1,5 @@
 #Energy forecasting
+/data.nosync/*
 /data/raw_data
 /data.nosync/raw_data
 /data.nosync/combined_data
