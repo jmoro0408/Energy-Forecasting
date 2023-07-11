@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{include = "energy_forecasting"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = ">=3.9,<3.12"
 pandas = "^2.0.2"
 seaborn = "^0.12.2"
 jupyter = "^1.0.0"
@@ -20,6 +20,7 @@ pyarrow = "^12.0.1"
 plotly = "^5.15.0"
 statsmodels = "^0.14.0"
 nbstripout = "^0.6.1"
+tensorflow = "^2.13.0"
 
 
 [build-system]
