@@ -6,6 +6,7 @@
 /data.nosync/transformed_data
 /data_information/Load_map1.png
 /data_information/Load_map2.png
+api_creds.toml
 notes.txt
 
 # Byte-compiled / optimized / DLL files
