@@ -20,7 +20,6 @@ repos:
   rev: 1.7.0
   hooks:
     - id: nbqa-isort
-    - id: nbqa-black
     - id: nbqa-ruff
       args: [--fix, --exit-non-zero-on-fix]
 
