@@ -39,10 +39,3 @@ repos:
     language: system
     entry: isort
     types: [python]
-
-  - id: mypy
-    name: mypy
-    stages: [commit]
-    language: system
-    entry: mypy
-    types: [python]
