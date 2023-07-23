@@ -3,6 +3,7 @@
 
 import json
 from datetime import date, datetime
+from itertools import cycle
 from pathlib import Path
 
 import numpy as np
@@ -160,7 +161,11 @@ def prepare_prediction_df(
     df_row_forecast["Day"] = df_row_forecast["timestamp"].dt.day
     df_row_forecast["Minute"] = df_row_forecast["timestamp"].dt.minute
     df_row_forecast["Hour"] = df_row_forecast["timestamp"].dt.hour
+    df_row_forecast = df_row_forecast.rename(columns={"timestamp": "Time Stamp"})
 
+    seq = cycle(range(0, 60, 5))
+    df_row_forecast["Minute"] = [next(seq) for count in range(df_row_forecast.shape[0])]
+    # Filling in mins
     daily_min = (
         df_row_forecast.groupby("Day", as_index=False)
         .min()[["Day", "temp"]]
@@ -231,7 +236,6 @@ def get_weather_forecast() -> pd.DataFrame:
         ptid_area_map=ptid_area_mapping,
     )
 
-
     return merge_prediction_dfs(mapping_df=area_info_df, api_key=api_key)
 
 
@@ -254,4 +258,5 @@ if __name__ == "__main__":
         Path.cwd(), "data.nosync", "outputs", "weather_forecast"
     )
     weather_predictions = get_weather_forecast()
+    save_weather_forecast(weather_predictions, SAVE_PREDICTIONS_DIR)
     save_weather_forecast(weather_predictions, SAVE_PREDICTIONS_DIR)
