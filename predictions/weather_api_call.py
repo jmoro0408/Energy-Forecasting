@@ -1,25 +1,14 @@
-import json
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Optional
+# pylint: disable=W0105
+# pylint: disable=C0103
 
+import json
+from datetime import date, datetime
+from pathlib import Path
+
+import numpy as np
 import pandas as pd
 import requests
 import tomli
-
-
-@dataclass
-class PredResult:
-    area: Optional[str] = None
-    lat: Optional[float] = None
-    lon: Optional[float] = None
-    lat_lon: Optional[tuple[float, float]] = None
-    grid_zone: Optional[str] = None
-    ptid: Optional[int] = None
-    date: Optional[str] = None
-    max_temp: Optional[float] = None
-    min_temp: Optional[float] = None
-    predicted_load: Optional[float] = None
 
 
 def get_forecast(
@@ -43,7 +32,7 @@ def get_forecast(
     str_lat_lon = ",".join([str(x) for x in lat_lon])
     query_params = {"q": str_lat_lon, "days": forecast_days, "key": api_key}
     try:
-        response = requests.get(BASE_URL, params=query_params, timeout=10) #type: ignore
+        response = requests.get(BASE_URL, params=query_params, timeout=10)  # type: ignore
     except (
         requests.exceptions.RequestException
     ) as _error:  # TODO Generic error catching = bad
@@ -51,37 +40,49 @@ def get_forecast(
     return response.json()
 
 
-def parse_forcast_response(forecast_response_json: dict) -> dict:
-    """From a full api response dict, extract the latitude, longitude, forecast dates and corresposnding
-    min and max termperatures forecasted,
+def parse_forcast_response(forecast_response_json: dict) -> dict[str, float]:
+    """From a full api response dict, extract the latitude, longitude, forecast dates,
+    hourly forecast for dates, with corresponding temperatures
 
     Args:
         forecast_response_json (dict): full response from get_forecast function
 
     Returns:
-        dict: latitude, longitude, dates, minmax temp dictionary
+        dict: latitude, longitude, dates,hours, minmax temp dictionary
     """
-    num_days_forecasted = len(forecast_response_json["forecast"]["forecastday"])
+    num_days_forecasted = range(len(forecast_response_json["forecast"]["forecastday"]))
+    num_hours = range(0, 24)
+    forecast_day = forecast_response_json["forecast"]["forecastday"]
     lat = forecast_response_json["location"]["lat"]
     lon = forecast_response_json["location"]["lon"]
-    dates = []
-    max_temps = []
-    min_temps = []
-    for day in range(num_days_forecasted):
-        dates.append(forecast_response_json["forecast"]["forecastday"][day]["date"])
-        max_temps.append(
-            forecast_response_json["forecast"]["forecastday"][day]["day"]["maxtemp_c"]
-        )
-        min_temps.append(
-            forecast_response_json["forecast"]["forecastday"][day]["day"]["mintemp_c"]
-        )
-    return {
-        "lat": lat,
-        "lon": lon,
-        "dates": dates,
-        "max_temps": max_temps,
-        "min_temps": min_temps,
-    }
+    tuple([lat, lon])
+    days = []
+    time = []
+    temps = []
+    for day in num_days_forecasted:
+        days.append(forecast_day[day]["date"])
+        for hour in num_hours:
+            time.append(forecast_day[day]["hour"][hour]["time"])
+            temps.append(forecast_day[day]["hour"][hour]["temp_c"])
+    # Extracting time from datetime
+    time = [datetime.strptime(x, "%Y-%m-%d %H:%M") for x in time]
+    time = [str(x.time()) for x in time]
+    response_dict = {}
+    # response_dict['lat_lon'] = lat_lon
+    step = len(time) / len(forecast_response_json["forecast"]["forecastday"])
+    for i in num_days_forecasted:
+        step1 = int(i * step)
+        step2 = int((i + 1) * step)
+        response_dict[days[i]] = dict(zip(time[step1:step2], temps[step1:step2]))
+    """
+    "Steps" explanation above.
+    the time and temps list contain all the time/temps for every day and hour
+    To map the correct chunk of each list to the correct day I need to split
+    each list into sizes of len(temps)/num_days -> "step".
+    I then slice each list based on this step and append to the correct day key in the dict.
+    """
+    df = pd.json_normalize(response_dict, sep=" ")  # type: ignore
+    return df.to_dict(orient="records")[0]
 
 
 def prepare_mapping_df(
@@ -107,7 +108,7 @@ def prepare_mapping_df(
     Returns:
         pd.DataFrame: dataframe as described above
     """
-    df = pd.DataFrame.from_dict(area_lat_lon_map).T.rename(columns={0: "Lat", 1: "Lon"}) #type: ignore
+    df = pd.DataFrame.from_dict(area_lat_lon_map).T.rename(columns={0: "Lat", 1: "Lon"})  # type: ignore
     df["Grid Zone"] = df.index.map(grid_zone_map)
     df["PTID"] = df["Grid Zone"].map(ptid_area_map)
     df["Lat_Lon"] = tuple(zip(df["Lat"], df["Lon"]))
@@ -116,57 +117,101 @@ def prepare_mapping_df(
     return df
 
 
-def convert_mapping_df_to_dataclasses(mapping_df: pd.DataFrame) -> list[PredResult]:
-    """converts a pandas dataframe with gridzone, ptid, area, lat, lon info
-    into a list of dataclasses as described by the PredResult class.
+def prepare_prediction_df(
+    mapping_df: pd.DataFrame, df_row_no: int, api_key: str, num_days_forecast: int = 3
+) -> pd.DataFrame:
+    """For a single row in the mapping_df (returned prepare_mapping_df function),
+    retrieves the weather forecast for that given lat_lon for the number of days specified.
+    For each timestamp in the df, splits into year, month, day, hour.
+    Then finds the min/max daily temperatures.
+    Finally it merges the weather results back with the mapping df, with the mapping info rows
+    duplicated down to fill the entire df.
+    Final returned df is of the following structure:
+
+    | index | Area | Lat | Lon | Grid Zone | PTID   | Lat_Lon | timestamp               | temp | year | month | day | minute | hour | max_temp | min_temp |
+    |-------|------|-----|-----|-----------|--------|---------|-------------------------|------|------|-------|-----|--------|------|----------|----------|
+    | 0     | ALB  | 42  | -72 | CAPITL    | 615757 | 42, -72 | 2023-07-23T00:00:00.000 | 20.1 | 2023 | 7     | 23  | 0      | 0    | 30.2     | 16.1     |
+    | 1     | ALB  | 42  | -72 | CAPITL    | 615757 | 42, -72 | 2023-07-23T00:00:00.000 | 19.2 | 2023 | 7     | 23  | 0      | 0    | 30.2     | 16.1     |
+
 
     Args:
-        mapping_df (pd.DataFrame): output from prepare_mapping_df() function
+        mapping_df (pd.DataFrame): mapping df from prepare_mapping_df func
+        df_row_no (int): corresponding row number in mapping df to pull weather forecast info for
+        api_key (str): weather_api api key
+        num_days_forecast (int, optional): number of days to forecast. Defaults to 3.
 
     Returns:
-        list[PredResult]: list of PredResult classes. Class should be fulling populated
-        excep for the predicted load values.
+        pd.DataFrame: pandas dataframe of the above structure
     """
-    # Converting dataframe to list of dataclasses
-    area_info_list = []  # TODO This is a poor name
-    for row in mapping_df.itertuples():
-        result_class = PredResult()
-        result_class.area = row.Area  #type: ignore
-        result_class.lat = float(row.Lat) #type: ignore
-        result_class.lon = float(row.Lon) #type: ignore
-        result_class.lat_lon = tuple([float(row.Lat), float(row.Lon)]) #type: ignore
-        result_class.grid_zone = (
-            row._4 #type: ignore
-        )  # BUG Not sure why grid_zone col name hasnt flowed through
-        result_class.ptid = float(row.PTID) #type: ignore
-        area_info_list.append(result_class)
-    return area_info_list
+    _df = mapping_df.copy()
+
+    df_row_at_num = pd.DataFrame(_df.iloc[df_row_no]).T
+    df_row_at_num["forecast_response"] = df_row_at_num["Lat_Lon"].apply(
+        lambda x: parse_forcast_response(
+            get_forecast(lat_lon=x, api_key=api_key, forecast_days=num_days_forecast)
+        )
+    )
+
+    df_row_forecast = pd.json_normalize(df_row_at_num["forecast_response"]).T.reset_index()  # type: ignore
+    df_row_forecast = df_row_forecast.rename(columns={0: "temp", "index": "timestamp"})
+    df_row_forecast["timestamp"] = pd.to_datetime(df_row_forecast["timestamp"])  # type: ignore
+    df_row_forecast["year"] = df_row_forecast["timestamp"].dt.year
+    df_row_forecast["month"] = df_row_forecast["timestamp"].dt.month
+    df_row_forecast["day"] = df_row_forecast["timestamp"].dt.day
+    df_row_forecast["minute"] = df_row_forecast["timestamp"].dt.minute
+    df_row_forecast["hour"] = df_row_forecast["timestamp"].dt.hour
+
+    daily_min = (
+        df_row_forecast.groupby("day", as_index=False)
+        .min()[["day", "temp"]]
+        .rename(columns={"temp": "min_temp"})
+    )
+    daily_max = (
+        df_row_forecast.groupby("day", as_index=False)
+        .max()[["day", "temp"]]
+        .rename(columns={"temp": "max_temp"})
+    )
+
+    df_row_max_merge = df_row_forecast.merge(daily_max, on="day")
+    df_row_min_merge = df_row_max_merge.merge(daily_min, on="day")
+
+    df_row_at_num = df_row_at_num.drop("forecast_response", axis=1, errors="ignore")  # type: ignore
+    df_row_at_num = df_row_at_num.loc[
+        np.repeat(df_row_at_num.index, df_row_min_merge.shape[0])  # type: ignore
+    ].reset_index(drop=True)
+
+    df_row_final = pd.concat([df_row_at_num, df_row_min_merge], axis=1)
+    df_row_final = df_row_final.dropna()
+    return df_row_final
 
 
-def write_forecast_results(
-    results_list: list[PredResult], **kwargs
-) -> list[PredResult]:
-    """Gets min/max temperatures for given number of days as specified by
-    "forecast_days" kwarg passed to get_forecast function
+def merge_prediction_dfs(mapping_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    """For each row in the mapping_df:
+    1. Creates weather forecast df via prepare_prediction_df func
+    2. appends to a list
+    3. merges all weather forecast dfs
 
     Args:
-        results_list (list[PredResult]): list of PredResult dataclasses holding area info:
-        area name, lat_lon, grid_zone, ptid
+        mapping_df (pd.DataFrame): mapping df from prepare_mapping_df func
 
     Returns:
-        list[PredResult]: same list of PredResults with additional date and min/max
-        forecasted temperature data
+        pd.DataFrame: combined df containing all date/time forecast info for all rows in mapping_df
     """
-    for res in results_list:
-        forecast = parse_forcast_response(get_forecast(lat_lon=res.lat_lon, **kwargs)) #type: ignore
-        res.date = forecast["dates"]
-        res.max_temp = forecast["max_temps"]
-        res.min_temp = forecast["min_temps"]
-    return results_list
+    prediction_dfs = []
+    for row_num in range(len(mapping_df)):
+        prediction_dfs.append(prepare_prediction_df(mapping_df, row_num, **kwargs))
+    return pd.concat(prediction_dfs, axis=0)
 
 
-def get_weather_forecast() -> list[PredResult]:
-    DAYS_FORECAST = 3
+def get_weather_forecast() -> pd.DataFrame:
+    """Pulls in local info (api key, mapping info, location info).
+    Maps the area, PTID, and lat_lon info into a single dataframe and creates
+    weather forecast df for all times/dates for each NY state area as defined in
+    weather_location_mapping.json
+
+    Returns:
+        pd.DataFrame: Weather forecast info for each NY state site
+    """
     API_TOML_DIR = Path("api_creds.toml")
     WEATHER_LOCATION_MAPPING_DIR = Path(
         "data_information", "weather_location_mapping.json"
@@ -180,20 +225,33 @@ def get_weather_forecast() -> list[PredResult]:
     ptid_area_mapping = json.loads(
         Path(PTID_AREA_MAPPING_DIR).read_text(encoding="UTF-8")
     )
-    df = prepare_mapping_df(
+    area_info_df = prepare_mapping_df(
         area_lat_lon_map=mapping_json["lat_lon"],
         grid_zone_map=mapping_json["grid_zone"],
         ptid_area_map=ptid_area_mapping,
     )
-    area_info = convert_mapping_df_to_dataclasses(df)
-    return write_forecast_results(
-        area_info, api_key=api_key, forecast_days=DAYS_FORECAST
-    )
+
+    return merge_prediction_dfs(mapping_df=area_info_df, api_key=api_key)
+
+
+def save_weather_forecast(weather_predictions_df: pd.DataFrame, save_dir: Path) -> None:
+    """Saved a df as a parquet to a given file dir
+    Appends todays date to the filename before saving
+
+    Args:
+        weather_predictions_df (pd.DataFrame): df to save
+        save_dir (Path): directory to save in
+    """
+    today_str = date.today().strftime("%Y_%m_%d")
+    SAVE_FNAME = Path(save_dir, f"forecast_{today_str}.parquet")
+    weather_predictions_df.to_parquet(SAVE_FNAME)
 
 
 if __name__ == "__main__":
 
-    forecast_results = get_weather_forecast()
-    print(forecast_results)
-    print()
-    print()
+    SAVE_PREDICTIONS_DIR = Path(
+        Path.cwd(), "data.nosync", "outputs", "weather_forecast"
+    )
+    weather_predictions = get_weather_forecast()
+    save_weather_forecast(weather_predictions, SAVE_PREDICTIONS_DIR)
+    print("saved")
