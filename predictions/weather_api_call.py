@@ -254,4 +254,3 @@ if __name__ == "__main__":
     )
     weather_predictions = get_weather_forecast()
     save_weather_forecast(weather_predictions, SAVE_PREDICTIONS_DIR)
-    print("saved")
