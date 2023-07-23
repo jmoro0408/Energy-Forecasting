@@ -155,25 +155,25 @@ def prepare_prediction_df(
     df_row_forecast = pd.json_normalize(df_row_at_num["forecast_response"]).T.reset_index()  # type: ignore
     df_row_forecast = df_row_forecast.rename(columns={0: "temp", "index": "timestamp"})
     df_row_forecast["timestamp"] = pd.to_datetime(df_row_forecast["timestamp"])  # type: ignore
-    df_row_forecast["year"] = df_row_forecast["timestamp"].dt.year
-    df_row_forecast["month"] = df_row_forecast["timestamp"].dt.month
-    df_row_forecast["day"] = df_row_forecast["timestamp"].dt.day
-    df_row_forecast["minute"] = df_row_forecast["timestamp"].dt.minute
-    df_row_forecast["hour"] = df_row_forecast["timestamp"].dt.hour
+    df_row_forecast["Year"] = df_row_forecast["timestamp"].dt.year
+    df_row_forecast["Month"] = df_row_forecast["timestamp"].dt.month
+    df_row_forecast["Day"] = df_row_forecast["timestamp"].dt.day
+    df_row_forecast["Minute"] = df_row_forecast["timestamp"].dt.minute
+    df_row_forecast["Hour"] = df_row_forecast["timestamp"].dt.hour
 
     daily_min = (
-        df_row_forecast.groupby("day", as_index=False)
-        .min()[["day", "temp"]]
-        .rename(columns={"temp": "min_temp"})
+        df_row_forecast.groupby("Day", as_index=False)
+        .min()[["Day", "temp"]]
+        .rename(columns={"temp": "Min_Temp"})
     )
     daily_max = (
-        df_row_forecast.groupby("day", as_index=False)
-        .max()[["day", "temp"]]
-        .rename(columns={"temp": "max_temp"})
+        df_row_forecast.groupby("Day", as_index=False)
+        .max()[["Day", "temp"]]
+        .rename(columns={"temp": "Max_Temp"})
     )
 
-    df_row_max_merge = df_row_forecast.merge(daily_max, on="day")
-    df_row_min_merge = df_row_max_merge.merge(daily_min, on="day")
+    df_row_max_merge = df_row_forecast.merge(daily_max, on="Day")
+    df_row_min_merge = df_row_max_merge.merge(daily_min, on="Day")
 
     df_row_at_num = df_row_at_num.drop("forecast_response", axis=1, errors="ignore")  # type: ignore
     df_row_at_num = df_row_at_num.loc[
@@ -230,6 +230,7 @@ def get_weather_forecast() -> pd.DataFrame:
         grid_zone_map=mapping_json["grid_zone"],
         ptid_area_map=ptid_area_mapping,
     )
+
 
     return merge_prediction_dfs(mapping_df=area_info_df, api_key=api_key)
 
