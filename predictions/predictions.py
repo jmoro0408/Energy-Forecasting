@@ -1,5 +1,6 @@
 # pylint: disable=W0105
 # pylint: disable=C0103
+import datetime
 from pathlib import Path
 from typing import Union
 
@@ -11,10 +12,18 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.experimental import enable_iterative_imputer  # noqa, isort: skip
 from sklearn.impute import IterativeImputer  # isort: skip
 
+SAVE_MODEL_DIR = Path(Path.cwd(), "models", "saved_model")
+SAVED_FORECAST_DIR = Path(
+    Path.cwd(),
+    "data.nosync",
+    "outputs",
+    "weather_forecast",
+    "forecast_2023_07_23.parquet",
+)
 
 class PreprocessingTransformer:
     """
-    A custom transformer for X_train and X_test data,
+    A custom transformer to preprocess data prior to inference
     """
 
     def __init__(self, df: pd.DataFrame):
@@ -112,6 +121,16 @@ class PreprocessingTransformer:
 
 
 def preprocess(forecast_df: pd.DataFrame) -> pd.DataFrame:
+    """Applies preprocessing steps as defined in the PreprocessingTransformer() class
+    to a dataframe
+
+    Args:
+        forecast_df (pd.DataFrame): incoming weather forecast df, output
+        from the weather_api_call.py file
+
+    Returns:
+        pd.DataFrame: preprocessed df ready for model inference
+    """
     preprocessing = PreprocessingTransformer(forecast_df)
     preprocessing.round_data()
     preprocessing.encode_cyclical()
@@ -143,23 +162,57 @@ def preprocess(forecast_df: pd.DataFrame) -> pd.DataFrame:
     return preprocessed_df
 
 
-def make_predictions():
-    SAVE_MODEL_DIR = Path(Path.cwd(), "models", "saved_model")
-    SAVED_FORECAST_DIR = Path(
-        Path.cwd(),
-        "data.nosync",
-        "outputs",
-        "weather_forecast",
-        "forecast_2023_07_23.parquet",
-    )
-    model = tf.keras.models.load_model(SAVE_MODEL_DIR)
-    forecast_df = pd.read_parquet(SAVED_FORECAST_DIR)
-    preprocessed_df = preprocess(forecast_df)
-    preds = model.predict(preprocessed_df)
-    preprocessed_df["pred_load"] = preds
-    return preprocessed_df
+def make_predictions(saved_model_dir:Path, saved_forecast_dir:Path) -> pd.DataFrame:
+    """Loads a pretrained tf model and weather_forecast df
+    before applying preprocessing techniques and applying model
+    predictions.
+
+
+    Returns:
+        pd.DataFrame: original df with and predictions
+    """
+
+    model = tf.keras.models.load_model(saved_model_dir)
+    forecast_df = pd.read_parquet(saved_forecast_dir)
+    processed_df = preprocess(forecast_df)
+    preds = model.predict(processed_df)
+    forecast_df["pred_load"] = preds
+    return forecast_df
+
+def save_predictions(prediction_df:pd.DataFrame, save_dir:Path) -> None:
+    """Saves df to parquet
+
+    Args:
+        prediction_df (pd.DataFrame): df to save
+        save_dir (Path): directory to save
+    """
+    prediction_df.to_parquet(save_dir)
+    return None
+
+def get_latest_forecast_date(saved_weather_forecast_dir:Path) -> str:
+    """returns the latest date present in the folder of saved weather forecasts
+
+    Args:
+        saved_weather_forecast_dir (Path): directory holding saved weather forecast parquet files
+
+    Returns:
+        str: latest forecast date
+    """
+    files = Path(saved_weather_forecast_dir).glob("*.parquet")
+    files = [p.stem for p in files]
+    files = [p[9:19] for p in files]
+    return sorted(files, key=lambda x: datetime.datetime.strptime(x, '%Y_%m_%d'),  reverse=True)[0]
+
 
 
 if __name__ == "__main__":
-    pred_df = make_predictions()
-    print(pred_df.head())
+    latest_forecast_date = get_latest_forecast_date(SAVED_FORECAST_DIR.parent)
+    save_preds_dir = Path(
+    Path.cwd(),
+    "data.nosync",
+    "outputs",
+    "load_predictions",
+    f"prediction_{latest_forecast_date}.parquet",
+)
+    pred_df = make_predictions(SAVE_MODEL_DIR, SAVED_FORECAST_DIR)
+    save_predictions(pred_df, save_preds_dir)
