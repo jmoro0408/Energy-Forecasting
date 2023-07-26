@@ -36,10 +36,26 @@ def results():
     latest_pred_date = get_latest_forecast_date(PRED_SAVE_DIR)
     fname = f"prediction_{latest_pred_date}.parquet"
     df = pd.read_parquet(Path(PRED_SAVE_DIR, fname))
-    return render_template("dataframe.html",
-                           column_names=df.columns.values,
-                           row_data=list(df.values.tolist()),
-                           zip=zip)
+    df['Date'] = df['Year'].astype(str) + "-" + df['Month'].astype(str) + "-" + df['Day'].astype(str)
+    df['Hour'] = df['Hour'].astype(str)
+    df['Minute']= df['Minute'].astype(str)
+    df['Minute'] = df['Minute'].str.zfill(2) #padding with leading zeros
+    df['Hour'] = df['Hour'].str.zfill(2)
+    df['Time'] = df['Hour'] + ":" + df['Minute']
+    df['pred_load'] = df['pred_load'].astype(float).round(2)
+    df['PTID'] = df['PTID'].astype(float).round(0).astype(int)
+    cols_to_display = ['Area', 'Lat', 'Lon', 'Grid Zone', 'PTID',
+                       'Date', 'Time', 'temp','Max_Temp', 'Min_Temp','pred_load']
+    df['Lat'] = df['Lat'].astype(float).round(2)
+    df['Lon'] = df['Lon'].astype(float).round(2)
+    df = df[cols_to_display]
+    df = df.rename(columns = {'Max_Temp': 'Max Daily Temp (C)', 'Min_Temp':'Min Daily Temp (C)',
+                              'temp':'Temp (C)', 'pred_load':'Predicted Load (kW)'})
+    # return render_template("dataframe.html",
+    #                        column_names=df.columns.values,
+    #                        row_data=list(df.values.tolist()),
+    #                        zip=zip)
+    return render_template("dataframe.html", data=df.to_html(table_id="df_output", index = False))
 
 
 @views.route("/json/")
