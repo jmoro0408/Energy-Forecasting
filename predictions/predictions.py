@@ -18,9 +18,8 @@ SAVED_FORECAST_DIR = Path(
     "data.nosync",
     "outputs",
     "weather_forecast",
-    "forecast_2023_07_23.parquet",
-)
-
+    "forecast_2023_07_26.parquet",
+) #TODO This date is hard coded
 class PreprocessingTransformer:
     """
     A custom transformer to preprocess data prior to inference
