@@ -13,13 +13,7 @@ from sklearn.experimental import enable_iterative_imputer  # noqa, isort: skip
 from sklearn.impute import IterativeImputer  # isort: skip
 
 SAVE_MODEL_DIR = Path(Path.cwd(), "models", "saved_model")
-SAVED_FORECAST_DIR = Path(
-    Path.cwd(),
-    "data.nosync",
-    "outputs",
-    "weather_forecast",
-    "forecast_2023_07_26.parquet",
-) #TODO This date is hard coded
+
 class PreprocessingTransformer:
     """
     A custom transformer to preprocess data prior to inference
@@ -202,10 +196,25 @@ def get_latest_forecast_date(saved_weather_forecast_dir:Path) -> str:
     files = [p[9:19] for p in files]
     return sorted(files, key=lambda x: datetime.datetime.strptime(x, '%Y_%m_%d'),  reverse=True)[0]
 
+def get_latest_forecast_dir() -> Path:
+    """Returns the full filepath of the latest saved forecast file
+
+    Returns:
+        Path: Path object of saved forecast
+    """
+    saved_forecast_dir = Path(
+    Path.cwd(),
+    "data.nosync",
+    "outputs",
+    "weather_forecast",)
+    _latest_forecast_date = get_latest_forecast_date(saved_forecast_dir)
+    latest_forecast_dir = Path(saved_forecast_dir, f"forecast_{_latest_forecast_date}.parquet")
+    return latest_forecast_dir
 
 
 if __name__ == "__main__":
-    latest_forecast_date = get_latest_forecast_date(SAVED_FORECAST_DIR.parent)
+    saved_forecast_dir = get_latest_forecast_dir()
+    latest_forecast_date = get_latest_forecast_date(saved_forecast_dir.parent)
     save_preds_dir = Path(
     Path.cwd(),
     "data.nosync",
@@ -213,5 +222,5 @@ if __name__ == "__main__":
     "load_predictions",
     f"prediction_{latest_forecast_date}.parquet",
 )
-    pred_df = make_predictions(SAVE_MODEL_DIR, SAVED_FORECAST_DIR)
+    pred_df = make_predictions(SAVE_MODEL_DIR, saved_forecast_dir)
     save_predictions(pred_df, save_preds_dir)
