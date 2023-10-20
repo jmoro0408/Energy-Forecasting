@@ -21,7 +21,8 @@ plotly = "^5.15.0"
 statsmodels = "^0.14.0"
 nbstripout = "^0.6.1"
 tensorflow = "^2.13.0"
-flask = "^2.3.2"
+connexion = {version = "2.14.1", extras = ["swagger-ui"]}
+flask = "2.2.2"
 
 
 [build-system]
