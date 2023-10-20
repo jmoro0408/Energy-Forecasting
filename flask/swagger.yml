@@ -1,0 +1,21 @@
+# swagger.yml
+
+openapi: 3.0.0
+info:
+  title: "NY Load Prediction REST API"
+  description: "An API for receiving New York State energy use predictions"
+  version: "1.0.0"
+
+servers:
+  - url: "/api"
+
+paths:
+ /results:
+  get:
+      operationId: "results.read_all"
+      tags:
+        - "Results"
+      summary: "Read all results"
+      responses:
+        "200":
+        description: "Successfully read all results"
