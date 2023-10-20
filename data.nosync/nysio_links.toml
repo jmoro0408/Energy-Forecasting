@@ -1,3 +1,0 @@
-[urls]
-weather_stem = "http://mis.nyiso.com/public/csv/lfweather/"
-load_stem = "http://mis.nyiso.com/public/csv/pal/"
